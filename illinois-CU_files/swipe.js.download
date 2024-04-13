@@ -1,0 +1,1080 @@
+
+// swipe.loadUrl(href, back = false, reload = false) {
+// swipe.loadForm(form, success = null, error = null, delay = 0) {
+// swipe.loadPage(href, back = false, reload = false, form = null, formdata = null, method = 'get', success = null, error = null)
+// swipe.previous(); goto previous page
+// swipe.nativeSpinnerShow(); show native spinner
+// swipe.nativeSpinnerHide(); hide native spinner
+// swipe.nativeClose(); close native from web
+// swipe.lastUrl(); return last FULL url
+// swipe.currentPage(); return current page DOM object
+// swipe.swipeOverrideLinks(); update links to use single page framework - should be called after introduce links to DOM
+
+var _swipePages = [];
+var _swipeScrapeOffset = 0;
+var _swipeStartX = -1;
+var _swipeStartY = -1;
+var _swipeObj = null;
+var _swipeNativeSpinnerOn = false;
+var _swipeLoading = false;
+var _swipeLoadingID = 0;
+var _swipeLastUrl = null;
+var _swipeCurrentPage = null;
+
+const SWIPEBACK_MAX_WIDTH = 480;
+const SWIPEBACK_DIST_FOR_DRAG = 10;
+const SWIPE_GLOBALSPINNER_DELAY = 1000;
+
+$(document).ready(function () {
+    
+  var entirePage = document.documentElement.innerHTML;
+  
+  // assign _swipeCurrentPage
+  _swipeCurrentPage = $('.page')[0];
+  _swipeLastUrl = window.location.href;
+  var url = swipe.swipeRemoveUrlParams(_swipeLastUrl);
+  swipe.swipeAddPage(url, entirePage, false);
+  swipe.swipeShowStack();
+  swipe.swipeMessageNative();
+
+  $('.view').mousedown( function(event) { swipe.swipeMouseDown(event, this); });
+  $('.view').mousemove( function(event) { swipe.swipeMouseMove(event, this); });
+  $('.view').mouseup( function(event) { swipe.swipeMouseUp(event, this); });
+  $('.view').mouseout( function(event) { swipe.swipeMouseUp(event, this); });
+
+  $('.view').on({ 'touchstart' : function(event){ swipe.swipeMouseDown(event, this); }});
+  $('.view').on({ 'touchend' : function(){ swipe.swipeMouseUp(event, this); }});
+  $('.view').on({ 'touchmove' : function(event){ swipe.swipeMouseMove(event, this); }});
+  
+  // post pageload callback if available (dekstop only)
+  if (typeof(MenuPostPageLoad) != 'undefined')
+    MenuPostPageLoad('body');
+  
+  // (attempt to) prevent back in the browser (not for iframe)
+  // works in chrome, firefox, and edge
+  if (window.self === window.top)
+    history.pushState(null, null, location.href);
+  
+  window.onpopstate = function (e) {
+    
+    // early exit if iframe
+    if (window.self !== window.top)
+      return;
+    
+    history.go(1);
+  };
+  
+});
+
+var swipe = {
+
+  /* swipeMouseDown */
+  swipeMouseDown: function(event, obj) {
+    if ($('body').hasClass('swipeable'))
+    {
+      var viewWidth = $(obj).width();
+      var mouseX = (event.type == 'touchstart') ? event.originalEvent.touches[0].pageX : event.pageX;
+      var mouseY = (event.type == 'touchstart') ? event.originalEvent.touches[0].pageY : event.pageY;
+      if (viewWidth <= SWIPEBACK_MAX_WIDTH && _swipePages.length >= 2 && mouseX < viewWidth * 0.15)
+      {
+        _swipeStartX = mouseX;
+        _swipeStartY = mouseY;
+      }
+    }
+  },
+
+  /* swipeMouseDown */
+  swipeMouseMove: function(event, obj) {
+    if (_swipeObj != null)
+    {
+      var mouseX = (event.type == 'touchmove') ? event.originalEvent.touches[0].pageX : event.pageX;
+      var diffTop = Math.max(mouseX - _swipeObj.start, 0);
+      var fraction = 1 - (diffTop / _swipeObj.width);
+      var diffBack = -20.0 * (fraction) + '%';
+      $(_swipeObj.top).css({left:diffTop});
+      $(_swipeObj.back).css({left:diffBack});
+      $(_swipeObj.topShadow).css({opacity:fraction});
+      $(_swipeObj.backOverlay).css({opacity:fraction});
+
+      // store lastX as touchend doesn't give coordinates
+      _swipeObj.lastX = mouseX;
+    }
+    else if (_swipeStartX >= 0)
+    {
+      var mouseX = (event.type == 'touchmove') ? event.originalEvent.touches[0].pageX : event.pageX;
+      var mouseY = (event.type == 'touchmove') ? event.originalEvent.touches[0].pageY : event.pageY;
+      if (mouseX > _swipeStartX + SWIPEBACK_DIST_FOR_DRAG)
+      {
+        var viewWidth = $(obj).width();
+        _swipeStartX = -1;
+
+        // prevent swipeback if page has preventSwipeBack class
+        var pgs = $('.page');
+        if ($(pgs[pgs.length - 1]).hasClass('preventSwipeBack'))
+            return;
+
+        var pages = $('.page');
+        var top = pages[pages.length-1];
+        var back = pages[pages.length-2];
+        $(top).append('<div class="swipe-page-shadow"></div>');
+        $(back).append('<div class="swipe-page-opacity"></div>');
+        var topShadow = $(top).find('.swipe-page-shadow');
+        var backOverlay = $(back).find('.swipe-page-opacity');
+        _swipeObj = {width:viewWidth, start:mouseX, top:top, back:back, topShadow:topShadow, backOverlay:backOverlay, lastX:mouseX };
+
+        // add swipe class to pages
+        $(top).addClass('page-swipeback');
+        $(back).addClass('page-swipeback');
+      }
+      else if (mouseY > _swipeStartY + SWIPEBACK_DIST_FOR_DRAG || mouseY < _swipeStartY - SWIPEBACK_DIST_FOR_DRAG)
+      {
+        _swipeStartX = -1;
+      }
+    }
+    
+  },
+
+  /* swipeMouseUp */
+  swipeMouseUp: function(event, obj) {
+    if (_swipeObj != null)
+    {
+        var mouseX = (event.type == 'touchend') ? _swipeObj.lastX : event.pageX;
+        var diffTop = Math.max(mouseX - _swipeObj.start, 0);
+        if (diffTop >= _swipeObj.width * 0.5)
+        {
+            // swipe back to previous page
+            $(_swipeObj.top).animate({left:_swipeObj.width}, 200, function() { $(this).remove(); } );
+            $(_swipeObj.back).animate({left:0}, 200, function() { 
+                $(this).removeAttr('style');
+                $(this).removeClass('page-swipeback');
+                swipe.swipeRemovePage(_swipePages[_swipePages.length-1]);
+                swipe.swipeShowStack();
+                swipe.swipeMessageNative();
+                swipe.swipeRenewPrevious();
+                swipe.swipeUpdateInputIDs(this, true);
+            });
+            $(_swipeObj.topShadow).animate({opacity:0}, 200);
+            $(_swipeObj.backOverlay).animate({opacity:0}, 200, function() { $(this).remove(); });
+            
+            // change center page class right away to fix ios bug of having wrong class for a frame
+            $(_swipeObj.back).removeClass('page-left').addClass('page-center');
+
+            // change browser URL and page title
+            var href = _swipePages[_swipePages.length-2].url;
+            document.title = _swipePages[_swipePages.length-2].title;
+            window.history.replaceState({page:document.title, href:href}, document.title, href);
+          
+            // assign _swipeCurrentPage to previous page
+            var pgs = $('.page');
+            _swipeCurrentPage = pgs[pgs.length - 2];
+        }
+        else
+        {
+            if (mouseX > _swipeObj.start)
+            {
+                // snap back
+                $(_swipeObj.top).animate({left:0}, 300, function() { $(this).removeAttr('style'); $(this).removeClass('page-swipeback'); });
+                $(_swipeObj.back).animate({left:'-20%'}, 300, function() { $(this).removeAttr('style'); $(this).removeClass('page-swipeback'); });
+                $(_swipeObj.topShadow).animate({opacity:1}, 300, function() { $(this).remove(); });
+                $(_swipeObj.backOverlay).animate({opacity:1}, 300, function() { $(this).remove(); });
+            }
+            else
+            {
+                $(_swipeObj.top).removeAttr('style');
+                $(_swipeObj.top).removeClass('page-swipeback');
+                $(_swipeObj.back).removeAttr('style');
+                $(_swipeObj.back).removeClass('page-swipeback');
+                $(_swipeObj.topShadow).remove();
+                $(_swipeObj.backOverlay).remove();
+            }
+        }
+        
+        _swipeObj = null;
+    }
+    
+    _swipeStartX = -1;
+  },
+
+  /* swipeOverrideLinks */
+  swipeOverrideLinks: function() {
+    console.log('  Overriding links('+ document.links.length +')');
+    for (var ls = document.links, numLinks = ls.length, i=0; i<numLinks; i++)
+    {
+        if (!$(ls[i]).hasClass('external') && typeof($(ls[i]).attr('onclick')) == 'undefined' && $(ls[i]).attr('href') != '#')
+            ls[i].onclick = this.swipeLinkHandler;
+    }
+  },
+
+  /* swipeLinkHandler */
+  swipeLinkHandler: function(event) {
+    // this prevents the href from firing so we can do all this DOM manipulation on THIS page
+    event.preventDefault();
+    
+    var href = $(this).attr('href');
+    var back = $(this).hasClass('back');
+    var reload = $(this).hasClass('reload');
+    
+    if (back && !reload && $(this).hasClass('previous') && _swipePages.length > 1)
+    {
+      swipe.previous();
+      return;
+    }
+    
+    var errorData = $(this).data('error');
+    var errorFunc = (errorData === undefined) ? null : window[errorData];
+    var page = (typeof(errorFunc) == 'function') ? $(this).closest('.page') : null;
+    
+    // if page is null and THIS element has a spinner - like a form or button - pass it along AS the form to prevent global spinner
+    if (page == null && $(this).hasClass('submitting'))
+      page = $(this);
+    
+    swipe.loadPage(href, back, reload, page, null, 'get', null, errorFunc);
+  },
+  
+  /* loadUrl */
+  //loadUrl: function(href, back = false, reload = false) {
+  loadUrl: function(href, back, reload) {
+    back = back || false;
+    reload = reload || false;
+    this.loadPage(href, back, reload);
+  },
+
+  /* loadForm */
+  //loadForm: function(form, success = null, error = null, delay = 0) {
+  loadForm: function(form, success, error, delay) {
+    success = success || null;
+    error = error || null;
+    delay = delay || 0;
+    
+    var formUrl = $(form).attr('action');
+    var formData = $(form).serialize();
+    var formMethod = $(form).attr('method');
+
+    // add class to submitting
+    $(form).addClass('submitting');
+    
+    // show native spinner if mobile/tablet
+    if (($('body').hasClass('mobile') || $('body').hasClass('tablet')) && $(form).find('.think').length > 0)
+      swipe.nativeSpinnerShow();
+      
+    // disable inputs and blur activeElement
+    this.swipeSetPageEnabled(form, false);
+
+    if (delay > 0)
+    {
+      setTimeout(function() {
+        swipe.loadPage(formUrl, false, false, form, formData, formMethod, success, error);  
+      }, delay);
+    }
+    else
+    {
+      this.loadPage(formUrl, false, false, form, formData, formMethod, success, error);
+    } 
+  },
+
+  /* loadPage */
+  //loadPage: function(href, back = false, reload = false, form = null, formdata = null, method = 'get', success = null, error = null) {
+  loadPage: function(href, back, reload, form, formdata, method, success, error) {
+    back = back || false;
+    reload = reload || false;
+    form = form || null;
+    formdata = formdata || null;
+    method = method || 'get';
+    success = success || null;
+    error = error || null;
+    
+    // early exit if already loading page
+    if (_swipeLoading)
+    {
+      console.log('already loading page...');
+      return;
+    }
+    
+    // early exit if link is not appropriate
+    if (typeof(href) == 'undefined' || href == '#' || href.startsWith('javascript:'))
+    {
+      console.log('early exit link handler for href = ['+ href +']');
+      return;
+    }
+    
+    // get absolute URL + remove get params from URL
+    //var absUrl = new URL(href, document.location).href;
+    var absUrl = swipe.swipeAbsUrl(href, document.location.href);
+    var leanUrl = swipe.swipeRemoveUrlParams(absUrl);
+    _swipeLastUrl = absUrl;
+    
+    if (_swipePages.length > 0 && leanUrl == _swipePages[_swipePages.length-1].url)
+    {
+      console.log('early exit because loading same page, href = ['+ href +']');
+      return;
+    }
+    
+    if (!reload && back && _swipePages.length > 1)
+    {
+        // look for leanUrl page being in the existing stack
+        var backIndex = -1;
+        for (var p=0; p<_swipePages.length; p++)
+        {
+            if (_swipePages[p].url == leanUrl)
+            {
+                backIndex = p;
+                break;
+            }
+        }
+        
+        if (backIndex >= 0)
+        {
+            console.log('Popping and navigating back to stack index['+ backIndex +']');
+            
+            for (var p=_swipePages.length-1; p>backIndex; p--)
+                this.swipeRemovePage(_swipePages[p]);
+      
+            var pgs = $('.page');
+            var pgLast = pgs[pgs.length - 1];
+            var pgCenter = pgs[backIndex];
+
+            // remove pages BETWEEN center and last from DOM
+            // this assumes that the STACK array is the same length and order as the DOM pages
+            for (var p=pgs.length-2; p>backIndex; p--)
+                $(pgs[p]).remove();
+            
+            // animate pages
+            $(pgLast).removeClass('page-center').addClass('page-center-to-right removing');
+            $(pgCenter).removeClass('page-left').addClass('page-left-to-center');
+            
+            $(pgCenter).on('animationend', function(e) {
+                $(this).removeClass('page-left-to-center').addClass('page-center');
+                $(this).off('animationend');
+                $(this).removeAttr('style');
+              
+                swipe.swipeUpdateInputIDs(this, true);
+            });
+            $(pgLast).on('animationend', function(e) { $(this).remove(); swipe.swipeRenewPrevious(); });
+            
+            // change browser URL and page title
+            var href = _swipePages[backIndex].url;
+            document.title = _swipePages[backIndex].title;
+            window.history.replaceState({page:document.title, href:href}, document.title, href);
+            
+            // assign _swipeCurrentPage to back page
+            var pgs = $('.page');
+            _swipeCurrentPage = pgs[backIndex];
+          
+            this.swipeShowStack();
+            this.swipeMessageNative();
+            
+            return;
+        }
+    }
+    
+    console.log('absUrl = ['+ absUrl +']');
+  
+    //method = methd ?
+    _swipeLoading = true;
+    _swipeLoadingID++;
+    
+    // show global spinner after slight pause
+    if (form == null)
+    {
+      var thisPageLoadID = _swipeLoadingID;
+      setTimeout(function() {
+        if (_swipeLoading && thisPageLoadID == _swipeLoadingID)
+          $('.global-spinner').addClass('submitting');
+      }, SWIPE_GLOBALSPINNER_DELAY);
+    }
+    
+    // this is a trick from stackoverflow to give access to xhr from any ajax callbacks...
+    // define xhr outside ajax scope
+    var xhr = new XMLHttpRequest();
+    
+    $.ajax({
+      type: method,
+      url: absUrl,
+      data: formdata,
+      dataType: 'html',
+      xhr: function() {
+         return xhr;
+      }
+      })
+      .always(function(data) {
+        
+        // note that a 302 redirect COULD change the response URL... so reassign it
+        if (xhr.responseURL != undefined)
+          leanUrl = swipe.swipeRemoveUrlParams(xhr.responseURL);
+        else
+          console.log('xhr.responseURL is not defined - cannot change URL if 302 redirect');
+      
+        if (typeof(data) != 'string')
+        {
+          if (typeof(data.responseText) != 'undefined')
+          {
+            data = data.responseText;
+          }
+          else
+          {
+            console.log('server returned invalid type - assigning error manually');
+            data = '<html><div class="page error"><div class="page-content"><div class="card wide p" align="center"> \
+                    <h2 class="response-title">Unknown Error</h2> \
+                    <div class="response-msg m-t-sm">An unknown error has occurred. Please try again later.</div> \
+                  </div></div></div><html>';
+          }
+        }
+      
+        //console.log('data: '+ data);
+        
+        // create empty element to add html and use jQuery to insert into document DOM
+        var el = $( '<div></div>' );
+        el.html(data);
+        var newPage = $('.page', el);
+        
+        // hide native spinner if visible
+        if (_swipeNativeSpinnerOn)
+          swipe.nativeSpinnerHide();
+        
+        // since message counts will be returned with every page, even success or error pages, then update the counts. (module compatible)
+        var messageCenterCount = $(el).find('.message-center-count').first().text();
+        if (messageCenterCount != '')
+          $('.message-center-count').text(messageCenterCount).show();
+        else
+          $('.message-center-count').hide();
+      
+        // check for error class on page and supplied error callback
+        if ($(newPage).hasClass('error') && error != null)
+        {
+          var title = $(newPage).find('.response-title').text();
+          var msg = $(newPage).find('.response-msg').text();
+          var data = $(newPage).find('.response-msg').data('json');
+          _swipeLoading = false;
+          $('.global-spinner').removeClass('submitting');
+          
+          // re-enable clickable items
+          if (form)
+          {
+            var pg = $(form).closest('.page');
+            swipe.swipeSetPageEnabled(pg, true);
+          }
+          
+          error(form, {title:title, msg:msg, data:data});
+          return;
+        }
+        
+        // check for success class on page and supplied success callback
+        if ($(newPage).hasClass('success') && success != null)
+        {
+          var title = $(newPage).find('.response-title').text();
+          var msg = $(newPage).find('.response-msg').text();
+          var data = $(newPage).find('.response-msg').data('json');
+          _swipeLoading = false;
+          $('.global-spinner').removeClass('submitting');
+          
+          // re-enable clickable items
+          if (form)
+          {
+            var pg = $(form).closest('.page');
+            swipe.swipeSetPageEnabled(pg, true);
+          }
+          
+          success(form, {title:title, msg:msg, data:data});
+          return;
+        }
+      
+        // check for standalone class on page and supplied success callback
+        if ($(newPage).hasClass('standalone'))
+        {
+          // remove ALL pages
+          // this needs to be done BEFORE the body is manipulated as some of the existing scripts might be parented to the existing body
+          for (var p=_swipePages.length-1; p>=0; p--)
+            swipe.swipeRemovePage(_swipePages[p]);
+          
+          var html = '<div class="views"><div class="view view-main"><div class="pages"></div></div></div>';
+          $('body').html(html);
+            
+          // prepend new page in DOM
+          $('.pages').append(newPage);
+
+          // re-assign _swipeCurrentPage
+          _swipeCurrentPage = $('.page')[0];
+          
+          // add this new page merging in the scripts from the last page INTO this new page
+          swipe.swipeAddPage(leanUrl, data, true);
+        }
+        else if ($(newPage).find('.page-content.login').length > 0)
+        {
+          // fix for rare occasion that a 'login' page is loaded into the single page framework
+          // this could happen when the intended page is redirected to the timeout or login page.
+        
+          console.log('Page with login style should not be loaded into single page framework, reloading page: '+ absUrl);
+          window.location = absUrl;
+          return;
+        }
+        else if (back)
+        {
+            // this is a special case where the user in navigating BACK to a page that doesn't exist
+            // in this case we need to prepend the page and animate the page from the left with the topmost page
+            // we also need to REMOVE all other pages from the DOM after that animation
+            // we also need to merge the JS from the FIRST/TOP page in the stack to effectively hold on and not double load
+            
+            var topPage = _swipePages[0];
+            
+            // prepend new page in DOM
+            $('.pages').prepend(newPage);
+            
+            // re-assign _swipeCurrentPage
+            _swipeCurrentPage = $('.page')[0];
+          
+            // add this new page merging in the scripts from the last page INTO this new page
+            swipe.swipeAddPage(leanUrl, data, true, topPage.scripts);
+            
+            var lastPage = _swipePages[_swipePages.length-1];
+            
+            // remove ALL pages leaving the new page
+            for (var p=_swipePages.length-1; p>=0; p--)
+            { 
+               if (_swipePages[p] != lastPage)
+                  swipe.swipeRemovePage(_swipePages[p]);
+            }
+        
+            var pgs = $('.page');
+            var pgLast = pgs[pgs.length - 1];
+            var pgNew = pgs[0];
+
+            // remove all other pages besides new and last from DOM
+            for (var p=0; p<pgs.length; p++)
+            {
+                if (pgs[p] != pgNew && pgs[p] != pgLast)
+                    $(pgs[p]).remove();
+            }
+            
+            // animate pages
+            $(pgLast).removeClass('page-center').addClass('page-center-to-right');
+            $(pgNew).removeClass('page-left').addClass('page-left-to-center');
+            
+            $(pgNew).on('animationend', function(e) {
+                $(this).removeClass('page-left-to-center').addClass('page-center');
+                $(this).off('animationend');
+              
+                swipe.swipeUpdateInputIDs(this, true);
+            });
+            $(pgLast).on('animationend', function(e) { $(this).remove(); });
+        }
+        else
+        {
+            $('.pages').append(newPage);
+        
+            var pgs = $('.page');
+            var pgT = pgs[pgs.length - 1];
+            var pg2 = pgs[pgs.length - 2];
+          
+            // assign _swipeCurrentPage to top page
+            _swipeCurrentPage = pgT;
+              
+            // animate pages
+            $(pgT).addClass('page-right-to-center');
+            $(pg2).removeClass('page-center').addClass('page-center-to-left');
+     
+            $(pgT).on('animationend', function(e) {
+                $(this).removeClass('page-right-to-center').addClass('page-center');
+                $(this).off('animationend');
+            });
+            $(pg2).on('animationend', function(e) {
+                $(this).removeClass('page-center-to-left').addClass('page-left');
+                $(this).off('animationend');
+                // hide results on previous page after transition
+                $(this).find('.result').hide();
+                
+                swipe.swipeUpdateInputIDs(this, false);
+            });
+               
+            swipe.swipeAddPage(leanUrl, data, true);
+        }
+        
+        swipe.swipeShowStack();
+        swipe.swipeMessageNative();
+        
+        _swipeLoading = false;
+        $('.global-spinner').removeClass('submitting');
+
+        // reset timeout if available
+        if (typeof(_timerExpiration) != 'undefined') {
+            var currentTime = new Date();
+            var timestamp = currentTime.getTime();
+            _timerExpiration = timestamp + (_timeoutReset * 1000);
+            timeoutTick();
+        }
+
+        // post pageload callback if available (dekstop only)
+        if (typeof(MenuPostPageLoad) != 'undefined')
+          MenuPostPageLoad(newPage);
+      });
+  },
+  
+  /* swipeSetPageEnabled */
+  swipeSetPageEnabled: function(page, enable) {
+    if (enable)
+    {
+      $(page).find('a,input,select').attr('tabindex', 0);
+    }  
+    else
+    {
+      $(page).find('a,input,select').attr('tabindex', -1);
+      $(document.activeElement).blur();
+    }
+  },
+
+  /* swipeAbsUrl */
+  swipeAbsUrl: function(href, url) {
+    
+    var absUrl = '';
+    
+    if (href.startsWith('https://') || href.startsWith('http://'))
+    {
+      absUrl = href;
+    }
+    else if (href.startsWith('/')) // ie /somePath/someFile.xyz
+    {
+      var dpos = url.indexOf('/', 10);
+      var domain = dpos > 0 ? url.substr(0, dpos) : url;
+      absUrl = domain + href;
+    }
+    else 
+    {
+      var dpos = url.lastIndexOf('/');
+      var path = url.substr(0, dpos+1);
+      absUrl = path + href;
+    }
+    
+    // check to add first slash in rare cases its not there
+    var slashCheck = absUrl.indexOf('/', 10);
+    if (slashCheck == -1)
+      absUrl += '/';
+    
+    return absUrl;
+  },
+  
+  /* swipeRemoveUrlParams */
+  swipeRemoveUrlParams: function(absUrl) {
+    // remove get params from URL
+    var paramIndex = absUrl.indexOf('?');
+    if (paramIndex > 0)
+    {
+      var vars = swipe.swipeGetUrlVars(absUrl);
+      if (vars.trim != '0')
+      {
+        absUrl = absUrl.substr(0, paramIndex);
+        console.log('shorting absUrl to ['+absUrl+']');
+      }
+    }
+    
+    return absUrl;
+  },
+  
+  /* swipeGetUrlVars */
+  swipeGetUrlVars: function(url) {
+    var vars = {};
+    var parts = url.replace(/[?&]+([^=&]+)=([^&]*)/gi,    
+    function(m,key,value) {
+      vars[key] = value;
+    });
+    return vars;
+  },
+  
+  /* swipeAddPage */
+  swipeAddPage: function(page, src, loadJS, scriptsToMerge) {
+    scriptsToMerge = scriptsToMerge || null;
+    
+    // add all JS from page
+    this.swipeAddJSFromSource(page, src, loadJS, scriptsToMerge);
+
+    // override links
+    this.swipeOverrideLinks();
+
+    // update document title and replace history/url
+    document.title = _swipePages[_swipePages.length-1].title;
+    window.history.replaceState({page:document.title,href:page}, document.title, page);
+  },
+
+  /* swipeRemovePage */
+  swipeRemovePage: function(page) {
+    
+    for (var p=0; p<_swipePages.length; p++)
+    {
+      if (_swipePages[p] == page)
+      {
+        _swipePages.splice(p, 1);
+        break;
+      }
+    }
+    
+    // unload all JS associated with this page:
+    for (var s=page.scripts.length-1; s>=0; s--)
+    {
+      console.log('popping JS with identifier ' + page.scripts[s].identifier);
+
+      if (page.scripts[s].script != null)
+      {
+        // https://stackoverflow.com/questions/9082760/does-removing-a-script-element-remove-its-functions-from-memory
+        // Any script which got evaluated once by the engine will stay in memory
+        // for the rest of your session. Even by removing the entire script node
+        // where the code was contained doesn't change that fact.
+
+        if (page.scripts[s].parent == 'body')
+        {
+          page.scripts[s].script.text = '';
+          document.body.removeChild(page.scripts[s].script);
+          page.scripts[s].script = null;
+        }
+        else if (page.scripts[s].parent == 'head')
+        {
+          page.scripts[s].script.src = '';
+          document.head.removeChild(page.scripts[s].script);
+          page.scripts[s].script = null;
+        }
+      }
+    }
+  },
+
+  /* swipeResetStack */
+  swipeResetStack: function() {
+
+    if (_swipePages.length > 1)
+    {
+        var firstPage = _swipePages[0];
+        var lastPage = _swipePages[_swipePages.length-1];
+
+        // merge all script from first page to last page
+        for (s=0; s<firstPage.scripts.length; s++)
+            lastPage.scripts.push(firstPage.scripts[s]);
+        firstPage.scripts = [];
+        
+        // remove ALL pages leaving the new page
+        for (p=_swipePages.length-1; p>=0; p--)
+        { 
+           if (_swipePages[p] != lastPage)
+              this.swipeRemovePage(_swipePages[p]);
+        }
+
+        var pgs = $('.page');
+        var pgCurrent = pgs[pgs.length - 2];
+        var pgLast = pgs[pgs.length - 1];
+
+        // remove all other pages besides current and last from DOM
+        for (p=0; p<pgs.length; p++)
+        {
+            if (pgs[p] != pgCurrent && pgs[p] != pgLast)
+                $(pgs[p]).remove();
+        }
+    }
+  },
+
+  /* swipeMessageNative */
+  swipeMessageNative: function() {
+    
+    if ($('body').hasClass('mobile') || $('body').hasClass('tablet'))
+    {
+      var pgs = $('.page:not(.removing)');
+      var title = _swipePages[_swipePages.length-1].title;
+      var allowNativeSwipeBack = (_swipePages.length == 1) && !$(pgs[pgs.length - 1]).hasClass('preventNativeSwipeBack');
+      var allowNativeClose = $(pgs[pgs.length - 1]).hasClass('allowNativeClose');
+      console.log('swipeMessageNative | page = '+ title +', allowNativeSwipeBack = '+ allowNativeSwipeBack +', allowNativeClose = ' + allowNativeClose);
+
+      if (typeof(window.webkit) != 'undefined')
+          window.webkit.messageHandlers.webPageInfo.postMessage({title:title,allowNativeSwipeBack:allowNativeSwipeBack,allowNativeClose:allowNativeClose});
+      else if (typeof(Android) != 'undefined')
+          Android.webPageInfo(title, allowNativeSwipeBack, allowNativeClose);
+    }
+  },
+  
+  /* nativeSpinnerShow */
+  nativeSpinnerShow: function() {
+    console.log('fullscreen spinner > show');
+    if (typeof(window.webkit) != 'undefined')
+        window.webkit.messageHandlers.webFullscreenSpinnerShow.postMessage({});
+    else if (typeof(Android) != 'undefined')
+        Android.webFullscreenSpinnerShow();
+    
+    _swipeNativeSpinnerOn = true;
+    //setTimeout(function() { MessageNativeFullscreenSpinnerHide(); }, 3000);
+  },
+  
+  /* nativeSpinnerHide */
+  nativeSpinnerHide: function() {
+    console.log('fullscreen spinner > hide');
+    if (typeof(window.webkit) != 'undefined')
+        window.webkit.messageHandlers.webFullscreenSpinnerHide.postMessage({});
+    else if (typeof(Android) != 'undefined')
+        Android.webFullscreenSpinnerHide();
+    
+    _swipeNativeSpinnerOn = false;
+  },
+  
+  /* nativeClose */
+  nativeClose: function() {
+    console.log('close webview');
+    if (typeof(window.webkit) != 'undefined')
+        window.webkit.messageHandlers.webClose.postMessage({});
+    else if (typeof(Android) != 'undefined')
+        Android.webClose();
+  },
+  
+  lastUrl: function() {
+    return _swipeLastUrl;
+  },
+  
+  currentPage: function() {
+    return _swipeCurrentPage;
+  },
+  
+  /* swipePrevious */
+  previous: function() {
+    // goto previous page...
+    if (_swipePages.length > 1)
+    {
+      var backIndex = _swipePages.length-2;
+      this.loadPage(_swipePages[backIndex].url, true);
+    }
+  },
+
+  /* swipeShowStack */
+  swipeShowStack: function() {
+    
+    // print stack
+    console.log('stack('+ _swipePages.length +'):');
+    
+    for (var p=0; p<_swipePages.length; p++)
+        console.log('  [url:'+ _swipePages[p].url +', title:'+ _swipePages[p].title +', scripts('+ _swipePages[p].scripts.length +')]');
+  },
+
+  /* swipeRenewPrevious */
+  swipeRenewPrevious: function() {
+    var pgs = $('.page');
+    var pgLast = pgs[pgs.length - 1];
+    $(pgLast).find('form.submitting').removeClass('submitting');
+    $(pgLast).find('a.submitting').removeClass('submitting');
+    $(pgLast).find('button.submitting').removeClass('submitting');
+
+    // re-enable clickable items
+    this.swipeSetPageEnabled(pgLast, true);
+  },
+
+  /* swipeUpdateInputIDs */
+  swipeUpdateInputIDs: function(pg, activate) {
+    
+    if (activate)
+    { 
+      // restore ID for checkboxes
+      $(pg).find('[type=checkbox]').each(function() {
+        var savedID = $(this).attr('data-saved-id');
+        if (savedID != undefined)
+        {
+          $(this).attr('id', savedID);
+          $(this).removeAttr('data-saved-id');
+        }
+      });
+      
+      // restore ID for radios
+      $(pg).find('[type=radio]').each(function() {
+        var savedID = $(this).attr('data-saved-id');
+        if (savedID != undefined)
+        {
+          $(this).attr('id', savedID);
+          $(this).removeAttr('data-saved-id');
+        }
+      });
+      
+      // restore ID for datepicker
+      $(pg).find('.input-date > input').each(function() {
+        var savedID = $(this).attr('data-saved-id');
+        if (savedID != undefined)
+        {
+          $(this).attr('id', savedID);
+          $(this).removeAttr('data-saved-id');
+        }
+      });
+    }
+    else
+    {
+      var stackSize = _swipePages.length;
+
+      // store/update ID for checkboxes
+      $(pg).find('[type=checkbox]').each(function() {
+        var id = $(this).attr('id');
+        $(this).attr('id', id + '-' + stackSize);
+        $(this).attr('data-saved-id', id);
+      });
+      
+      // store/update ID for radios
+      $(pg).find('[type=radio]').each(function() {
+        var id = $(this).attr('id');
+        $(this).attr('id', id + '-' + stackSize);
+        $(this).attr('data-saved-id', id);
+      });
+      
+      // store/update ID for datepicker
+      $(pg).find('.input-date > input').each(function() {
+        var id = $(this).attr('id');
+        $(this).attr('id', id + '-' + stackSize);
+        $(this).attr('data-saved-id', id);
+      });
+      
+    }
+  },
+  
+  /* swipeAddJSFromSource */
+  swipeAddJSFromSource: function(page, src, loadJS, scriptsToMerge) {
+    
+    console.log('------------------------------------------');
+    console.log('Adding page ['+ page +']');
+    
+    // reset scrape offset
+    _swipeScrapeOffset = 0;
+    
+    var title = this.swipeScrape(src, '<title>', '</title>', false, false);
+    var scripts = [];
+    if (scriptsToMerge != null)
+    {
+        console.log('  merging scripts('+ scriptsToMerge.length +')');
+        for (s=0; s<scriptsToMerge.length; s++)
+            scripts.push(scriptsToMerge[s]);
+    }
+    
+    var cont = true;
+    
+    while (cont)
+    {
+        var scriptElement = this.swipeScrape(src, '<script', '</script>', true, true);
+      
+        if (scriptElement.length > 0)
+        {
+            //console.log('script element: ['+ scriptElement +']');
+
+            // to determine if script is external file or internal content block look for closing '>' character on <script>
+            // <script> means content block otherwise expect external file like like <script src="something.js">
+            if (scriptElement.startsWith('<script>'))
+            {
+                var scriptContent = this.swipeScrape(scriptElement, '>', '</script>', false, false);
+                var scriptContentHash = this.swipeHashCode(scriptContent);
+                
+                var alreadyAdded = false;
+                /*
+                for (p=0; !alreadyAdded && p<_swipePages.length; p++)
+                {
+                    for (s=0; !alreadyAdded && s<_swipePages[p].scripts.length; s++)
+                    {
+                        if (_swipePages[p].scripts[s].identifier == scriptContentHash)
+                        {
+                            alreadyAdded = true;
+                            console.log('  JS with identifier ['+ scriptContentHash +'] is already added!');
+                            break;
+                        }
+                    }    
+                }
+                */
+                
+                var script = null;
+                
+                if (!alreadyAdded && loadJS)
+                {
+                    script = document.createElement('script');
+                    script.text = scriptContent;
+                    document.body.appendChild(script);
+                }
+                
+                if (!alreadyAdded)
+                {
+                    console.log('  adding JS with identifier ['+ scriptContentHash +']');
+                    scripts.push({identifier:scriptContentHash, script:script, parent:'body'});
+                }
+            }
+            else
+            {
+                var scriptSrcUrl = this.swipeScrape(scriptElement, 'src="', '"', false, false);
+              
+                var alreadyAdded = false;
+              
+                // TEMP testing
+                alreadyAdded = true;
+              
+                for (var p=0; !alreadyAdded && p<_swipePages.length; p++)
+                {
+                    for (var s=0; !alreadyAdded && s<_swipePages[p].scripts.length; s++)
+                    {
+                        if (_swipePages[p].scripts[s].identifier == scriptSrcUrl)
+                        {
+                            alreadyAdded = true;
+                            console.log('  JS with identifier ['+ scriptSrcUrl +'] is already added!');
+                            break;
+                        }
+                    }    
+                }
+                
+                var script = null;
+                    
+                if (!alreadyAdded && loadJS)
+                {
+                    script = document.createElement('script');
+                    script.src = scriptSrcUrl;
+                    document.head.appendChild(script);
+                }
+                
+                if (!alreadyAdded)
+                {
+                    console.log('  adding JS with identifier ['+ scriptSrcUrl +']');
+                    scripts.push({identifier:scriptSrcUrl, script:script, parent:'head'});
+                }
+            }
+        }
+        else
+        {
+            cont = false;
+        }
+    }
+    
+    // add page
+    _swipePages.push({url:page, title:title, scripts:scripts});
+  },
+
+  /* swipeScrape */
+  swipeScrape: function(src, start, end, useGlobalOffset, includeDelimiters) {
+    var p1 = src.indexOf(start, useGlobalOffset ? _swipeScrapeOffset : 0);
+    if (p1 >= 0)
+    {
+        var p2offset = p1 + start.length;
+        var p2 = src.indexOf(end, p2offset);
+        if (p2 > 0)
+        {
+            if (useGlobalOffset)
+                _swipeScrapeOffset = Math.max(_swipeScrapeOffset, p2 + end.length);
+            
+            if (includeDelimiters)
+                return src.substr(p1, p2 + end.length - p1);
+            else
+                return src.substr(p1+start.length, p2 - p1 - start.length);
+        }
+    }
+    return '';
+  },
+
+  /* swipeHashCode */
+  swipeHashCode: function(content) {
+    var hash = 0, i, chr;
+    if (content.length === 0) return hash;
+    for (i = 0; i < content.length; i++) {
+      chr   = content.charCodeAt(i);
+      hash  = ((hash << 5) - hash) + chr;
+      hash |= 0; // Convert to 32bit integer
+    }
+    return hash;
+  }
+
+} /* end of swipe class */
+
+// startsWith polyfill (fix for ie11)
+if (!String.prototype.startsWith) {
+  Object.defineProperty(String.prototype, 'startsWith', {
+    value: function(search, rawPos) {
+      var pos = rawPos > 0 ? rawPos|0 : 0;
+      return this.substring(pos, pos + search.length) === search;
+    }
+  });
+}
+

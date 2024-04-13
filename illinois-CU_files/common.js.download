@@ -1,0 +1,794 @@
+var _timeout = 0;
+var _timeoutInterval;
+var _timeoutReset = 60 * 15;
+var _timeoutWarning = 60 * 2;
+var _timerExpiration = null;
+var _hoverMenuNext = null;
+var _hoverMenuObj = null;
+
+$(document).ready(function () {
+
+    // remove active dropmenus on clicking body
+    $('body').click(function () {
+        $('.dropgroup.active').each(function () {
+            var obj = this;
+            $(obj).addClass('hid');
+            setTimeout(function () {
+                $(obj).removeClass('active');
+            }, 300);
+        });
+    });
+
+    // match sidemenu hight to be hight of document
+    //$('#mainMenu > ul').css({ 'min-height': $(document).height() - 54 });
+
+    if (isMobileApp()) {
+        $('body').addClass('webview');
+    }
+    if (isIosApp()) {
+        $('body').addClass('swipeable');
+    }
+    if (isAndroidApp()) {
+        $('body').addClass('android');
+
+        // for android the virtual keyboard CAN change the viewport height and change UX by media query...
+        // to prevent that we'll assign the HEIGHT to the viewport
+        var viewport = document.querySelector("meta[name=viewport]");
+        viewport.setAttribute("content", viewport.content + ", height=" + window.innerHeight);
+    }
+
+    if (isFirefox()) {
+        // fix for FF not supporting css content to assign logo image
+        var logo = $('.login img.logo')[0];
+        if (logo != undefined) {
+            var logoUrl = getComputedStyle(logo).getPropertyValue('--login-logo');
+            if (logoUrl.length > 0) {
+                logoUrl = logoUrl.replace(/\\/g, "");           // fix slashes
+                logoUrl = logoUrl.substr(4, logoUrl.length - 5);  // remove url() part
+                $(logo).attr('src', logoUrl);
+            }
+        }
+
+        logo = $('.megabar img.logo')[0];
+        if (logo != undefined) {
+            var logoUrl = getComputedStyle(logo).getPropertyValue('--logo');
+            if (logoUrl.length > 0) {
+                logoUrl = logoUrl.replace(/\\/g, "");           // fix slashes
+                logoUrl = logoUrl.substr(4, logoUrl.length - 5);  // remove url() part
+                $(logo).attr('src', logoUrl);
+            }
+        }
+    }
+
+    // timeout
+    if ($('.timeout').length > 0) {
+        var currentTime = new Date();
+        var timestamp = currentTime.getTime();
+        _timerExpiration = timestamp + (_timeoutReset * 1000);
+        _timeoutInterval = setInterval(timeoutTick, 1000);
+    }
+
+    window.addEventListener('storage', function (e) {
+        if(window.location == window.parent.location) {
+            if (e.key === 'iris.new_tab') {
+                HandleMultipleTabs();
+            }
+            if (e.key === 'iris.new_session') {
+                HandleMultipleSessions();
+            }
+        }
+    });
+
+    if ($('.page').find('.page-content.login').length == 0 && window.location == window.parent.location) {
+        TriggerMultipleTabs();
+    }
+});
+
+function timeoutTick() {
+    var currentTime = new Date().getTime();
+    var timeUntilExpiration = parseInt((_timerExpiration - currentTime) / 1000);
+
+    var m = Math.floor(timeUntilExpiration / 60);
+    var s = timeUntilExpiration % 60;
+    if (s < 10) {
+        s = "0" + s;
+    }
+    if (timeUntilExpiration <= 0) {
+        clearInterval(_timeoutInterval);
+
+        // redirect
+        var url = $('meta[name="timeout"]').attr("content");
+        if (url != undefined && url.length > 0) {
+            window.location = url;
+        }
+    }
+    if (timeUntilExpiration <= _timeoutWarning) {
+        if ($('#modal').length < 1) {
+            modalTimeout();
+            timeoutTick();
+        }
+        $('#modal #session_timer_id').text(m + ':' + s);
+    }
+
+    $('.timeout .timer').text(m + ':' + s);
+}
+
+function timeoutEnd() {
+    clearInterval(_timeoutInterval);
+
+    // redirect
+    var url = $('meta[name="timeout"]').attr("content");
+    if (url != undefined && url.length > 0) {
+        window.location = url;
+    }
+}
+
+$(window).resize(function () {
+    // match sidemenu hight to be hight of document
+    //$('#mainMenu > ul').css({ 'min-height': $(document).height() - 54 });
+});
+
+function mainMenuShow() {
+
+    if (window.innerWidth > 1078) // was 760
+    {
+        if ($('body').hasClass('menu_hidden')) {
+            $('body').removeClass('menu_hidden');
+        } else {
+            $('body').addClass('menu_hidden');
+        }
+        return;
+    }
+
+    if ($('#profileMenu').is(':visible')) {
+        profileMenuHide();
+    }
+
+    // match sidemenu hight to be hight of document
+    //$('#mainMenu > ul').css({ 'min-height': $(document).height() - 54 });
+
+    // toggle buttons
+    $('#mainMenuShow').hide();
+    $('#mainMenuHide').show();
+
+    $('body').addClass('menu_visible');
+
+    // assign rollout "anim" class after making visible to animate thru css
+    setTimeout(function () {
+        $('body').addClass('menu_rollout');
+    }, 10);
+}
+
+function mainMenuHide() {
+
+    // toggle buttons
+    $('#mainMenuHide').hide();
+    $('#mainMenuShow').show();
+
+    $('body').removeClass('menu_rollout');
+    setTimeout(function () {
+        $('body').removeClass('menu_visible');
+    }, 300);
+}
+
+function hoverMenuShow(obj, sel) {
+
+    // early exit if already active
+    if ($(sel).hasClass('active')) {
+        return;
+    }
+  
+    // this will bound ONE mouseleave event for the obj
+    // if the hover/left events are close together it will clear the NEXT element before it gets a change to "hover"
+    $(obj).one('mouseleave', function() {    
+      if (_hoverMenuNext == obj)
+        _hoverMenuNext = null;
+    });
+  
+    _hoverMenuNext = obj;
+    if (_hoverMenuObj == null)
+    {
+      hoverMenuShowDelayed(obj, sel);
+    }
+    else
+    {
+      setTimeout(function() { 
+        hoverMenuShowDelayed(obj, sel);
+      }, 200);
+    }
+  
+}
+
+function hoverMenuShowDelayed(obj, sel) {
+  
+    // early exit if mouse already LEFT obj quick enough
+    if (_hoverMenuNext != obj)
+      return;
+  
+    _hoverMenuObj = obj;
+    _hoverMenuNext = null;
+
+    $('.hoverlink.active').removeClass('active');
+    $('.hovermenu.active').each(function () {
+        var obj = this;
+        $(obj).addClass('hid');
+        setTimeout(function () {
+            $(obj).removeClass('active');
+        }, 250);
+    });
+
+    // hide any active dropdowns
+    $('.dropgroup.active').each(function () {
+        var obj = this;
+        $(obj).addClass('hid');
+        setTimeout(function () {
+            $(obj).removeClass('active');
+        }, 300);
+    });
+
+    // button hover
+    if ($(obj).hasClass('hoverlink')) {
+        $(obj).addClass('active');
+    }
+
+    // hover menu
+    $(sel).addClass('active hid');
+    setTimeout(function () {
+        $(sel).removeClass('hid');
+    }, 16);
+}
+
+function hoverMenuHide(obj) {
+
+    // this will bound ONE mouseleave event for the obj
+    // if the hover/left events are close together it will clear the NEXT element before it gets a change to "hover"
+    _hoverMenuNext = obj;
+
+    if ($(obj).is('a'))
+    {
+      // 'a' link
+      $(obj).one('mouseleave', function() {    
+        if (_hoverMenuNext == obj)
+          _hoverMenuNext = null;
+      });
+    }
+    else
+    {
+      // megamenu div
+      $(obj).one('mouseenter', function() {    
+        if (_hoverMenuNext == obj)
+        _hoverMenuNext = null;
+      });
+    }
+
+    setTimeout(function() { 
+      hoverMenuHideDelayed(obj);
+    }, 300);    
+}
+
+function hoverMenuHideDelayed(obj) {
+    
+    // early exit if mouse already LEFT obj quick enough
+    if (_hoverMenuNext != obj)
+      return;
+  
+    $('.hoverlink.active').removeClass('active');
+    $('.hovermenu.active').each(function () {
+        var obj = this;
+        $(obj).addClass('hid');
+        setTimeout(function () {
+            $(obj).removeClass('active');
+        }, 250);
+    });
+  
+    _hoverMenuObj = null;
+    _hoverMenuNext = null;
+}
+
+function accordion(obj) {
+    var vis = $(obj).hasClass('on');
+    if (!vis) {
+        // toggle any opened accordions
+        $(obj).closest('ul').find('.accordion.on').removeClass('on').next().slideUp(300);
+
+        // show
+        $(obj).addClass('on');
+        $(obj).next().slideDown(300);
+    } else {
+        // hide
+        $(obj).removeClass('on');
+        $(obj).next().slideUp(300);
+    }
+}
+
+function rollout(obj) {
+  var parent = $(obj).closest('.rollout');
+	var vis = $(parent).hasClass('on');
+	if (!vis)
+	{
+		// show
+		$(parent).addClass('on');
+		$(parent).find('.rollout-content').slideDown(300);
+	}
+	else
+	{
+		// hide
+		$(parent).removeClass('on');
+		$(parent).find('.rollout-content').slideUp(300);
+	}
+}
+
+function tab(obj) {
+    var page = $(obj).closest('.page');
+    var group = $(obj).closest('.tabs').find('.tab.on').data('group');
+    if (group) {
+      $(page).find('#' + group).hide();
+    }
+
+    $(obj).closest('.tabs').find('.tab.on').removeClass('on');
+
+    $(obj).addClass('on');
+    group = $(obj).data('group');
+    if (group) {
+      $(page).find('#' + group).show();
+    }
+}
+
+function dropdown(obj) {
+  var menu = $(obj).closest('.dropgroup');
+  if (menu.length > 0) {
+    if ($(menu).hasClass('active'))
+    {
+      $(menu).addClass('hid');
+      setTimeout(function() { $(menu).removeClass('active') }, 300);
+    }
+    else {
+        $('.dropgroup.active').each(function () {
+            var obj = this;
+            if (obj != menu) {
+                $(obj).addClass('hid');
+                setTimeout(function () {
+                    $(obj).removeClass('active');
+                }, 300);
+            }
+
+        });
+
+        // show dropdown
+        $(menu).addClass('active hid');
+        setTimeout(function () {
+            $(menu).removeClass('hid');
+        }, 10);
+
+        // compute to add/remove drop-up class depending on offsetY on screen
+        var wh = $(window).height();
+        var offsetY = $(menu).offset().top;
+        var length = $(menu).find('.dropdown a').length;
+        var dropDownBottom = offsetY + length * 54 + 80;
+        var dropUpTop = offsetY - length * 54 - 20;
+
+        if (dropDownBottom > wh && dropUpTop > 0) {
+            $(menu).find('.dropdown').addClass('drop-up');
+        } else {
+            $(menu).find('.dropdown').removeClass('drop-up');
+        }
+    }
+
+      event.stopPropagation();
+  }
+}
+
+function submitForm(bn) {
+    var form = $(bn).closest('.page').find('form');
+    if (typeof(form) != 'undefined')
+    {
+        console.log('submitForm 2...');
+        $(bn).html('<span class="fa fa-spinner fa-spin"></span>');
+        $(bn).addClass('disabled');
+        $(form).submit();
+    }
+}
+
+var _modalYes = null;
+var _modalNo = null;
+var _modalParams = null;
+
+function modalOK(title, msg, labelOK, callbackOK, params, override) {
+
+    _modalYes = callbackOK;
+    _modalNo = null;
+    _modalParams = params;
+
+    var popupclass = override || '';
+
+    var html = ' \
+    <div class="popup hid '+ popupclass +'" id="modal" hidden style="display: block;"> \
+		<div class="frame"> \
+      '+ ((title != null && title.length > 0) ? '<h2>'+ title +'</h2>' : '') + '\
+			<p>'+ msg +'</p> \
+			<div class="links"><a class="text-primary" onclick="modalYes();">'+ labelOK +'</a></div> \
+		</div> \
+	</div>';
+
+    $('body').prepend(html);
+    setTimeout(function() {
+        $('#modal').removeClass('hid');
+    }, 10);
+}
+
+function modalYesNo(title, msg, labelYes, callbackYes, labelNo, callbackNo, params) {
+
+    _modalYes = callbackYes;
+    _modalNo = callbackNo;
+    _modalParams = params;
+
+    var html = ' \
+    <div class="popup hid" id="modal" hidden style="display: block;"> \
+		<div class="frame"> \
+			'+ ((title != null && title.length > 0) ? '<h2>'+ title +'</h2>' : '') + '\
+			<p>'+ msg +'</p> \
+			<div class="links"><a class="left" onclick="modalNo();">'+ labelNo +'</a><a class="right" onclick="modalYes();">'+ labelYes +'</a></div> \
+		</div> \
+	</div>';
+
+    $('body').prepend(html);
+    setTimeout(function() {
+        $('#modal').removeClass('hid');
+    }, 10);
+}
+
+function modalYes() {
+    $('#modal').remove();
+    if (_modalYes != null)
+        _modalYes(_modalParams);
+}
+
+function modalNo() {
+    $('#modal').remove();
+    if (_modalNo != null)
+        _modalNo(_modalParams);
+}
+
+function modalShow(inID) {
+  $(inID).show();
+  setTimeout(function() {
+      $(inID).removeClass('hid');
+  }, 10);
+}
+
+function modalHide(inID) {
+  $(inID).addClass('hid').hide();
+}
+
+function modalExternal(msg, labelYes, callbackYes, labelNo, callbackNo, params) {
+
+    _modalYes = callbackYes;
+    _modalNo = callbackNo;
+    _modalParams = params;
+
+    var html = ' \
+  <div class="popup hid" id="modal" hidden style="display: block;"> \
+		<div class="frame"> \
+			<p>' + msg + '</p> \
+			<div class="links"><a class="left" onclick="modalNo();">' + labelNo + '</a><a class="right" onclick="modalYes();">' + labelYes + '</a></div> \
+		</div> \
+	</div>';
+
+    $('body').prepend(html);
+    setTimeout(function () {
+        $('#modal').removeClass('hid');
+    }, 10);
+}
+
+var _pibForm = null;
+var _pibCallback = null;
+var _pibParam = null;
+
+function modalPib(form, callback, param) {
+
+    _pibForm = form;
+    _pibCallback = callback || null;
+    _pibParam = param || null;
+
+    var product = $(form).data('pib-product') || '[Product Name]';
+
+    var html = ' \
+  <div class="popup hid" id="modal-pib"> \
+    <div class="frame" align="center"> \
+      <div><span class="pib-logo secondary-bg"><img src="https://dev.cupublisher.com/images/prototypes/itsme-app/pib.png"></span></div> \
+      <div class="text-18 m-t-sm">Confirmation Code Required</div> \
+      <div class="text-15 text-p m-t-sm">To access ' + product + ' please enter your Confirmation Code.</div> \
+      <div class="form-input form-password form-narrow m-t-lg"> \
+        <div id="current"> \
+          <div id="pib_pass_group"><span class="no-validation"><input id="pib_pass" type="password" name="code" value="" placeholder="Enter Code Here..." maxlength="20" onfocus="formInputFocus(this);" oninput="modalPibPasswordMatch(this, \'#pib_text\'); modalPibValidateForm(this);" onblur="modalPibValidatePassword(this);" /><a class="password-show" onmousedown="modalPibPasswordToggle(this);"></a></span></div> \
+          <div id="pib_text_group" hidden><span class="no-validation"><input id="pib_text" type="text" value="" placeholder="Enter Code Here..." maxlength="20" onfocus="formInputFocus(this);" oninput="modalPibPasswordMatch(this, \'#pib_pass\'); modalPibValidateForm(this);" onblur="modalPibValidatePassword(this);" /><a class="password-hide" onmousedown="modalPibPasswordToggle(this);"></a></span></div> \
+        </div> \
+        <div class="invalid-text" align="left"></div> \
+      </div> \
+      <div class="result m-t-xs m-b-lg" hidden> \
+        <div class="alert danger icon" align="left"><i class="material-icons">cancel</i><span class="lbl">The code you entered was not correct. Please check your entry and try again.</span></div> \
+      </div> \
+      <div class="links"><a class="left" onclick="modalPibCancel(this);">Cancel</a><a class="right text-primary disabled" id="pib-submit" onclick="modalPibSubmit(this);"> \
+      <span class="lb">Submit</span> \
+      <span class="spinner"> \
+        <svg class="material-spinner" width="25px" height="25px" viewBox="0 0 66 66" xmlns="http://www.w3.org/2000/svg"> \
+          <circle class="material-spinner-path" fill="none" stroke-width="6" stroke-linecap="round" cx="33" cy="33" r="30"></circle> \
+        </svg> \
+      </span> \
+      </a></div> \
+    </div> \
+  </div>';
+
+    $('body').prepend(html);
+    setTimeout(function () {
+        $('#modal-pib').removeClass('hid');
+    }, 10);
+}
+
+function modalPibPasswordMatch(obj, sel) {
+  $(sel).val( $(obj).val() );
+}
+
+function modalPibPasswordToggle(obj) {
+  var frame = $(obj).closest('.frame');
+  if ($(frame).find('#pib_pass_group').is(':visible'))
+  {
+    $(frame).find('#pib_pass_group').hide();
+    $(frame).find('#pib_text_group').show();
+    $(frame).find('#pib_text').focus();
+  }
+  else
+  {
+    $(frame).find('#pib_text_group').hide();
+    $(frame).find('#pib_pass_group').show();
+    $(frame).find('#pib_pass').focus();
+  }
+
+  event.preventDefault();
+}
+
+function modalPibValidatePassword(obj) {
+  var frame = $(obj).closest('.frame');
+  var password = $(frame).find('#pib_pass').val();
+  if (password.length < 1)
+  {
+      $(obj).closest('.form-input').removeClass('valid').addClass('invalid');
+      $(obj).closest('.form-input').find('.invalid-text').text('This field must be at least 1 character');
+  }
+  else
+  {
+      $(obj).closest('.form-input').removeClass('invalid').addClass('valid');
+  }
+}
+
+function modalPibValidateForm(obj) {
+  var frame = $(obj).closest('.frame');
+  var pib = $(frame).find('#pib_pass').val();
+  var pass = 1;
+  if (pib.length < 1)
+      pass = 0;
+
+  if (pass)
+    $(frame).find('#pib-submit').removeClass('disabled');
+  else
+    $(frame).find('#pib-submit').addClass('disabled');
+}
+
+function modalPibCancel(obj) {
+  $('#modal-pib').remove();
+}
+
+function modalPibSubmit(obj) {
+    //$('#modal-pib').addClass('hid').hide();
+
+    var frame = $(obj).closest('.frame');
+    if ($(frame).find('#pib-submit').hasClass('disabled')) {
+        return;
+    }
+
+    $(frame).find('.result').hide();
+    $(frame).find('#pib-submit').addClass('submitting');
+
+    if (typeof (swipe) != 'undefined') {
+        var form = _pibForm;
+        var code = $(frame).find('#pib_pass').val();
+        var token = $(form).data('pib-token') || '123456';
+        var pibcode = $(form).data('pib-code') || 'xyz';
+        var piburl = $(form).data('pib-url') || 'pib-submit';
+        var formData = '_token=' + token + '&code=' + code + '&pibcode=' + pibcode;
+        swipe.loadPage(piburl, false, false, frame, formData, 'post', modalPibSuccess, modalPibError);
+    }
+}
+
+function modalPibSuccess(form, obj) {
+    if (typeof (swipe) != 'undefined') {
+        // submit form
+        var form = _pibForm;
+
+        // turn off pib attribute and re-submit form
+        $(form).data('pib', false);
+
+        // trigger callback or resubmit form
+        if (_pibCallback != null) {
+            _pibCallback(_pibParam);
+        } else {
+            $(form).submit();
+        }
+
+        // easy-hide modal
+        $('#modal-pib').addClass('hid');
+        setTimeout(function () {
+            $('#modal-pib').remove();
+        }, 300);
+    }
+}
+
+function modalPibError(form, obj) {
+    $(form).removeClass('submitting');
+    $(form).find('#pib-submit').removeClass('submitting');
+
+    $(form).find('.result .lbl').text(obj.msg);
+    $(form).find('.result').show();
+}
+
+function modalMultipleTabs() {
+    if ($('#modal').length < 1) {
+        var html = '<i class="material-icons text-orange">error</i><br>Multiple Browser Tabs';
+        modalOK(html, 'It appears you might be using another browser tab.  For your protection, it is recommended that you close this one.', 'Close', MultipleTabsConfirm);
+    }
+}
+
+function MultipleTabsConfirm() {
+    console.log('MultipleTabsConfirm...');
+}
+
+function modalTimeout() {
+    modalYesNo('Session Expiring', 'For your security this session will timeout in:<div class="timeout m-t-md"><span class="text-34 text-thin timer">-</span></div>', '<span class="text-primary">I\'m Still Here</span>', TimeoutStay, '<span class="text-red">Sign Out</span>', TimeoutLeave);
+}
+
+function TimeoutLeave() {
+    clearInterval(_timeoutInterval);
+
+    // redirect
+    var url = $('meta[name="timeout"]').attr("content");
+    if (url != undefined && url.length > 0) {
+        window.location = url;
+    }
+}
+
+function TimeoutStay() {
+    var currentTime = new Date();
+    var timestamp = currentTime.getTime();
+    _timerExpiration = timestamp + (_timeoutReset * 1000);
+    timeoutTick();
+    var refreshUrl = $('meta[name="refresh"]').attr("content");
+    if (refreshUrl != undefined && refreshUrl.length > 0) {
+        swipe.loadPage(refreshUrl, false, false, null, null, 'get', TimeoutStaySuccess, TimeoutStayError);
+    }
+}
+
+function TimeoutStaySuccess(form, obj) {
+    console.log('TimeoutStaySuccess...');
+}
+
+function TimeoutStayError() {
+    TimeoutLeave();
+}
+
+function externalLink(obj) {
+
+    modalYesNo('You\'re About to Leave This Page', 'You are about to be directed to an external web page. If you do not want to be redirected, select Cancel.', '<span class="text-primary">Continue</span>', externalLinkConfirm, 'Cancel', null, obj);
+
+}
+
+function externalLinkConfirm(obj) {
+    var url = $(obj).data('url');
+    if (url != null && url.length > 0) {
+        var target = $(obj).attr('target');
+        if (target != null && target == '_blank') {
+            window.open(url, '_blank');
+        } else {
+            window.location = url;
+        }
+    } else {
+        console.log('data-url attribute not assigned on this <a>. Please assign it!');
+    }
+}
+
+function TriggerMultipleSessions() {
+    localStorage.setItem('iris.new_session', new Date().getTime());
+}
+
+function TriggerMultipleTabs() {
+    if (!$('body').hasClass('no-tab-check')) {
+        localStorage.setItem('iris.new_tab', new Date().getTime());
+    }
+}
+
+function HandleMultipleSessions() {
+    var url = $('meta[name="closed"]').attr("content");
+    if (url != undefined && url.length > 0) {
+        window.location = url;
+    }
+}
+
+function HandleMultipleTabs() {
+    if (!(window.safari !== undefined && document.hasFocus())) {
+        modalMultipleTabs();
+    }
+}
+
+// laravel magic for CSRF token
+$.ajaxSetup({
+    headers: {'X-CSRF-Token': $('meta[name=_token]').attr('content')},
+});
+
+function isMobileApp() {
+    return isAndroidApp() || isIosApp();
+}
+
+function isAndroidApp() {
+    // removed 'version' test as newer phones like Galaxy S5 or S10 don't have 'version'
+    var userAgent = window.navigator.userAgent.toLowerCase();
+    var isAndroid = /android/.test(userAgent);
+
+    if (isAndroid) {
+        return true;
+    }
+
+    return false;
+}
+
+function isIosApp() {
+    var userAgent = window.navigator.userAgent.toLowerCase();
+    var ios = /iphone|ipod|ipad/.test(userAgent);
+
+    if (ios) {
+        return true;
+    }
+
+    return false;
+}
+
+function isFirefox() {
+    // removed 'version' test as newer phones like Galaxy S5 or S10 don't have 'version'
+    var userAgent = window.navigator.userAgent.toLowerCase();
+    var isFF = /firefox/.test(userAgent);
+
+    if (isFF) {
+        return true;
+    }
+
+    return false;
+}
+
+function ShowQD(apy) {
+    modalOK('Qualified Dividend Eligibility', 'Earn ' + apy + ' APY (Annual Percentage Yield) on entire balance when qualifications are not met. To find out how to qualify for a higher APY, review the requirements listed on this account.', 'Close', null, null);
+
+    event.stopPropagation();
+    event.preventDefault();
+}
+
+/* form helpers *********************************/
+
+function formInputFocus(obj) {
+  $(obj).closest('.form-input').removeClass('valid invalid');
+}
+
+function formInputRequired(obj) {
+  var value = $(obj).val();
+  if (value == null || value.length == 0)
+    $(obj).closest('.form-input').removeClass('valid').addClass('invalid').find('.invalid-text').text('This field is required');
+  else
+    $(obj).closest('.form-input').removeClass('invalid');
+}
+
+/* formet helpers *********************************/
+
+function formatNiceDate(date) {
+  // convert date formats from 8/27/2019 --> Aug 27, 2019
+  var parts = date.split('/');
+  const months = ['-', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  return months[parts[0]] + ' ' + parts[1] +", "+ parts[2];
+
+}

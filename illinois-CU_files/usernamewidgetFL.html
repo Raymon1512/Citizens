@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<!-- saved from url=(0052)https://www.itsme247.com/319/authentication/username -->
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <!-- Version: 22.6.29.0 -->
+    
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no">
+    <meta name="login-alerts" content="https://static.itsme247.com/iris/319/itsme247/v1/json/login-alerts-desktop.json">
+    <title>Login</title>
+    <!-- polyfill for css variables in IE11 -->
+<script>
+    if (window.ie11polyfill == undefined && window.MSInputMethodContext && document.documentMode) {
+        document.write('<script src="https://cdn.jsdelivr.net/gh/nuxodin/ie11CustomProperties@4.1.0/ie11CustomProperties.min.js"><\/script>');
+        window.ie11polyfill = true; // assign to only write once
+    }
+</script>
+
+<!-- favicons -->
+<link rel="icon" href="https://static.itsme247.com/iris/common/itsme247/v1/img/favicon.ico">
+<link rel="icon" type="image/png" href="https://static.itsme247.com/iris/319/itsme247/v1/img/desktop/favicon-16x16.png" sizes="16x16">
+<link rel="icon" type="image/png" href="https://static.itsme247.com/iris/319/itsme247/v1/img/desktop/favicon-32x32.png" sizes="32x32">
+<link rel="icon" type="image/png" href="https://static.itsme247.com/iris/319/itsme247/v1/img/desktop/favicon-96x96.png" sizes="96x96">
+<link rel="icon" type="image/png" href="https://static.itsme247.com/iris/319/itsme247/v1/img/desktop/favicon-192x192.png" sizes="192x192">
+<link rel="apple-touch-icon" href="https://static.itsme247.com/iris/319/itsme247/v1/img/desktop/favicon-180x180.png" sizes="180x180">
+
+<link href="./icon" rel="stylesheet">
+<link href="./jquery-ui.css" rel="stylesheet">
+<link href="./font-awesome.min.css" rel="stylesheet">
+<link href="./royalslider.css" rel="stylesheet">
+<link href="./royalslider.skin.default.css" rel="stylesheet">
+<link href="./dropzone.min.css" rel="stylesheet">
+
+    <link href="./styles.min.css" rel="stylesheet" type="text/css">
+    <link href="./colors.min.css" rel="stylesheet" type="text/css">
+    
+
+
+
+<style>@font-face {
+              font-family: 'Open Sans Regular';
+              font-style: normal;
+              font-weight: 400;
+              src: url('chrome-extension://gkkdmjjodidppndkbkhhknakbeflbomf/fonts/open_sans/open-sans-v18-latin-regular.woff');
+          }</style><style>@font-face {
+              font-family: 'Open Sans Bold';
+              font-style: normal;
+              font-weight: 800;
+              src: url('chrome-extension://gkkdmjjodidppndkbkhhknakbeflbomf/fonts/open_sans/open-sans-v18-latin-800.woff');
+          }</style></head>
+<body>
+    <!-- Views -->
+    <div class="views">
+        <!-- Your main view -->
+        <div class="view view-main">
+            <!-- Pages -->
+            <div class="pages">
+                <div class="page standalone login" data-page="">
+                    <div class="page-content login">
+                        <div class="overlay" onclick="LoginDismiss(this);"></div>
+                        
+<div class="card login" onclick="LoginEatEvent(this, event);">
+    
+<div class="p">
+    <div class="hid-embedded"><img class="logo"></div>
+    <div class="royalSlider rsDefault rsAutoHeight rsHor"><div class="rsOverflow" style="width: 0px; height: 0px;"><div class="rsContainer" style="transition-duration: 0s; transform: translate3d(0px, 0px, 0px);"><div style="left: 0px;" class="rsSlide "><div style="visibility: visible; opacity: 1; transition: opacity 400ms ease-in-out 0s;">
+    <form method="post" autocomplete="off" onsubmit="return LoginSignInSubmit(this);" action="https://www.itsme247.com/319/authentication/submit-username">
+        <input type="hidden" name="redirecturl" value="">
+        <div class="content">
+            <div class="embedded-md">
+                <div class="text-24 hid-embedded m-t-md m-b-lg">Sign In</div>
+                <!-- splashpage preview -->
+                <!-- alert preview -->
+                <div id="alerts-container"></div>
+
+                <div class="result m-b-sm" hidden=""></div>
+                <div class="m-t-xxs">
+                    <span class="validation"><input id="username" name="username" type="text" maxlength="20" placeholder="Username..." onfocus="formInputFocus(this);" oninput="LoginSignInValidateForm(this);" onblur="LoginSignInChangeUsername(this);"></span>
+                </div>
+                <div id="group-pass-mask" class="m-t-xxs">
+                    <span class="validation">
+                        <input id="password" name="password" type="password" maxlength="256" placeholder="Password..." onfocus="formInputFocus(this);" oninput="LoginSignInMatchPassword(this);" onblur="formInputRequired(this);">
+                        <a class="input-password-mask off" onclick="LoginSignInUnmaskPassword(this);"></a>
+                    </span>
+                </div>
+                <div id="group-pass-unmask" class="m-t-xxs" hidden="" style="display: none;">
+                    <span class="validation">
+                        <input id="password-vis" name="password" type="text" maxlength="256" placeholder="Password..." onfocus="formInputFocus(this);" oninput="LoginSignInMatchPassword(this);" onblur="formInputRequired(this);">
+                        <a class="input-password-mask on" onclick="LoginSignInMaskPassword(this);"></a>
+                    </span>
+                </div>
+                <div class="m-t-xxs">
+                    <button type="submit" id="submit" class="bn bn-wide primary" disabled="">
+                        <span class="lb">Sign In</span>
+                        <span class="spinner">
+                            <svg class="material-spinner" width="25px" height="25px" viewBox="0 0 66 66" xmlns="http://www.w3.org/2000/svg">
+                                <circle class="material-spinner-path" fill="none" stroke-width="6" stroke-linecap="round" cx="33" cy="33" r="30"></circle>
+                            </svg>
+                        </span>
+                    </button>
+                </div>
+                <div class="m-t-lg">
+                    <a id="reset-password" class="text-primary text-15 text-bold external" target="_top" href="https://www.itsme247.com/319/reset-password">Forgot Password</a>
+                        <span style="margin:0 14px;opacity:0.5">•</span>
+                        <a class="text-primary text-15 text-bold external" target="_top" href="https://www.itsme247.com/319/setup-steps/enroll">First Time User?</a>
+                </div>
+            </div>
+            <div class="embedded-xxs">
+                <a class="bn bn-wide primary external" target="_parent" href="https://www.itsme247.com/319/authentication/username">Sign In</a>
+            </div>
+        </div>
+    <input name="__RequestVerificationToken" type="hidden" value="CfDJ8OKTTUt-0b9LqVtHvzlowiy7ia67jn84gwvDDVNoRlsGpD5vSSIvCzdzLxpG5WoQNQLaOh-LWywE_C3ukGoGRUiLGpT5Sc4-1iscYxTDbdL8vhDbOcW8WHmDS7jqPVMdqhQuJv22FqAHiQu26iY5DoI"></form>
+</div></div><div style="left: 0px;" class="rsSlide  hid"><div>
+    <form method="post" autocomplete="off" onsubmit="return LoginSecuritySubmit(this);" action="https://www.itsme247.com/319/authentication/security-answer">
+        <div class="content">
+            <div class="embedded-md">
+                <input type="hidden" id="questionId" name="questionId">
+                <input type="hidden" id="security-token" name="token">
+                <div class="text-24 m-t-sm">Welcome <span id="password-username" class="text-b">-</span></div>
+                <div class="text-15 m-t-md m-b-lg" id="question"></div>
+                <div class="result m-b-sm" hidden=""></div>
+                <div id="group-answer-unmask" class="m-t-xxs">
+                    <span class="validation">
+                        <input id="security" name="security" type="text" maxlength="40" placeholder="Answer..." onfocus="formInputFocus(this);" oninput="LogSecurityMatchAnswer(this);" onblur="formInputRequired(this);" tabindex="0">
+                        <a class="input-password-mask on" onclick="LoginSecurityMaskAnswer(this);" tabindex="0"></a>
+                    </span>
+                </div>
+                <div id="group-answer-mask" class="m-t-xxs" hidden="">
+                    <span class="validation">
+                        <input id="security-vis" name="security" type="password" maxlength="40" placeholder="Answer..." onfocus="formInputFocus(this);" oninput="LogSecurityMatchAnswer(this);" onblur="formInputRequired(this);" tabindex="0">
+                        <a class="input-password-mask off" onclick="LoginSecurityUnmaskAnswer(this);" tabindex="0"></a>
+                    </span>
+                </div>
+                <div class="bns m-t-xxs">
+                    <a class="bn left outline" onclick="LoginBack(this);" tabindex="0">Back</a>
+                    <button type="submit" id="submit" class="bn right primary" disabled="">
+                        <span class="lb">Submit</span>
+                        <span class="spinner">
+                            <svg class="material-spinner" width="25px" height="25px" viewBox="0 0 66 66" xmlns="http://www.w3.org/2000/svg">
+                                <circle class="material-spinner-path" fill="none" stroke-width="6" stroke-linecap="round" cx="33" cy="33" r="30"></circle>
+                            </svg>
+                        </span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    <input name="__RequestVerificationToken" type="hidden" value="CfDJ8OKTTUt-0b9LqVtHvzlowiy7ia67jn84gwvDDVNoRlsGpD5vSSIvCzdzLxpG5WoQNQLaOh-LWywE_C3ukGoGRUiLGpT5Sc4-1iscYxTDbdL8vhDbOcW8WHmDS7jqPVMdqhQuJv22FqAHiQu26iY5DoI"></form>
+</div></div></div></div><div style="clear:both; float: none;"></div></div>
+</div>
+<div class="footlinks hid-embedded">
+</div>
+
+
+
+</div>
+
+
+
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script src="./jquery.min.js(1).download"></script>
+<script src="./jquery-ui.min.js(1).download"></script>
+<script src="./jquery.ui.touch-punch.min.js.download"></script>
+<script src="./cleave.min.js.download"></script>
+<script src="./cleave-phone.us.js.download"></script>
+<script src="./jquery.royalslider.min.js.download"></script>
+<script src="./dropzone.min.js.download"></script>
+<script src="./filter.js.download"></script>
+<script src="./common.js.download"></script>
+<script src="./swipe.js.download"></script>
+<script src="./validate.js.download"></script>
+
+
+    <script>
+        function LoginDismiss(obj) {
+            if (window.parent != null)
+                window.parent.postMessage('login.dismiss', '*');
+        }
+    </script>
+
+    
+    <script>
+        function LoginEatEvent(obj, event) {
+            event.stopPropagation();
+        }
+
+    </script>
+    
+    <script>
+        $(document).ready(function () {
+            $('.royalSlider').royalSlider({
+                controlNavigation: 'none',
+                keyboardNavEnabled: false,
+                transitionSpeed: 600,
+                arrowsNav: false,
+                loop: false,
+                autoHeight: true,
+                slidesSpacing: 0,
+                navigateByClick: false,
+                sliderDrag: false,
+                sliderTouch: false,
+                /*addActiveClass: true,*/
+                autoPlay: { enabled: false }
+            });
+
+            var slider = $('.royalSlider').data('royalSlider');
+            slider.ev.on('rsBeforeAnimStart', function (event) {
+                // before animation between slides start
+                this.slidesJQ[this.currSlideId].removeClass('hid');
+            });
+
+            slider.ev.on('rsAfterSlideChange', function (event) {
+                // triggers after slide change
+                if (this.currSlideId > 0)
+                    this.slidesJQ[this.currSlideId - 1].addClass('hid');
+                if (this.currSlideId + 1 < this.slidesJQ.length)
+                    this.slidesJQ[this.currSlideId + 1].addClass('hid');
+
+                // autofocus on security input on slide 2
+                if (this.currSlideId == 1)
+                    setTimeout(function () { $('#security').focus(); }, 16);
+            });
+
+            // setup hid class for 2nd+ slides
+            for (s = 1; s < slider.slidesJQ.length; s++)
+                slider.slidesJQ[s].addClass('hid');
+
+            // Login Alerts
+            var loginAlertsUrl = $('meta[name="login-alerts"]').attr("content");
+            $.ajax({
+                type: 'get',
+                url: loginAlertsUrl,
+                dataType: 'json'
+            })
+            .success(function (data) {
+
+                var html = '';
+                for (var a = 0; a < data.length; a++) {
+                    var alert = data[a];
+                    if (alert.type == 'warning')
+                        html += '<div class="alert warning icon m-b-sm"><i class="material-icons">error</i><div class="msg">' + alert['message'] + '</div></div>';
+                    else
+                        html += '<div class="alert danger icon m-b-sm"><i class="material-icons">cancel</i><div class="msg">' + alert['message'] + '</div></div>';
+                }
+                $('#alerts-container').html(html);
+
+                // since the content might have pushed down RS then update size
+                UpdateSliderSize();
+            })
+            .error(function (xhr, error) {
+                console.log('The login alerts failed to load');
+            });
+        });
+
+        // Sign In *********************************
+        function LoginSignInChangeUsername(obj) {
+            var $form = $(obj).closest('form');
+            var $reset = $form.find("#reset-password");
+            var username = $form.find("#username").val();
+
+            // Custom: Pass in username into forgot password endpoint. 
+            if (username) {
+                $reset.attr('href', '/319/reset-password' + "?username=" + encodeURIComponent(username));
+            } else {
+                 $reset.attr('href', '/319/reset-password');
+            }
+
+            formInputRequired(obj);
+        }
+
+        function LoginSignInValidateForm(obj) {
+            var form = $(obj).closest('form');
+
+            var username = $(form).find('#username').val();
+            var password = $(form).find('#password').val();
+
+            var pass = 1;
+
+            if (username == null || username.length == 0)
+                pass = 0;
+            if (password == null || password.length == 0)
+                pass = 0;
+
+            if (pass)
+                $(form).find('#submit').prop('disabled', false);
+            else
+                $(form).find('#submit').prop('disabled', true);
+        }
+
+        function LoginSignInSubmit(obj) {
+            var form = $(obj).closest('form');
+            if ($(form).find('#submit').is(':disabled'))
+                return false;
+
+            // hide (previous) result on form
+            var form = $(obj).closest('form');
+            $(form).find('.result').hide();
+            UpdateSliderSize();
+
+            if (typeof (swipe) != 'undefined') {
+                swipe.loadForm(form, LoginSignInSuccess, LoginSignInError, 1000);
+                return false;
+            }
+
+            return true;
+        }
+
+        function LoginSignInSuccess(form, obj) {
+            var username = $('#username').val();
+            $('#password-username').text(username);
+
+            // setup steps remain to be completed
+            if (obj.data && obj.data.next) {
+                window.parent.location.href = obj.data.next;
+                return false;
+            }
+
+            if (typeof (swipe) != 'undefined') {
+                if (obj.data && obj.data.token) {
+                    swipe.loadPage('/319/authentication/security-question?token=' + obj.data.token, false, false, form, null, 'get', LoginSignInSuccess2, LoginSignInError);
+                }
+                else {
+                    swipe.loadPage('/319/authentication/security-question', false, false, form, null, 'get', LoginSignInSuccess2, LoginSignInError);
+                }
+                return false;
+            }
+        }
+
+        function LoginSignInSuccess2(form, obj) {
+            $(form).removeClass('submitting');
+            // setup steps remain to be completed
+            if (obj.data && obj.data.next) {
+                window.parent.location.href = obj.data.next;
+                return false;
+            }
+
+            $(form).parents().find('#questionId').val(obj.data.id);
+            $(form).parents().find('#question').html(obj.data.question);
+            $(form).parents().find('#security-token').val(obj.data.token);
+
+            $('.royalSlider').data('royalSlider').next();
+        }
+
+        function LoginSignInError(form, obj) {
+            $(form).removeClass('submitting');
+
+
+            // if alerts are visible add 'hid-embedded' class to hide them when embedded (because we'll need the space they occupy)
+            $(form).find('#alerts-container').addClass('hid-embedded');
+
+            var html = '<div class="alert danger icon"><i class="material-icons">cancel</i><div class="msg">' + obj.msg + '</div></div>';
+            $(form).find('.result').html(html).show();
+            UpdateSliderSize();
+        }
+
+        function LoginBack(obj) {
+            $('.royalSlider').data('royalSlider').prev();
+        }
+
+        function LoginSignInMatchPassword(obj) {
+            var form = $(obj).closest('form');
+            var pass = $(obj).val();
+
+            var pass1 = $(form).find('#password');
+            if (!$(pass1).is(':visible'))
+                $(pass1).val(pass);
+
+            var pass2 = $(form).find('#password-vis');
+            if (!$(pass2).is(':visible'))
+                $(pass2).val(pass);
+
+            LoginSignInValidateForm(obj);
+        }
+
+        function LoginSignInUnmaskPassword(obj) {
+            var form = $(obj).closest('form');
+            $(form).find('#group-pass-mask').hide();
+            $(form).find('#group-pass-unmask').show();
+        }
+
+        function LoginSignInMaskPassword(obj) {
+            var form = $(obj).closest('form');
+            $(form).find('#group-pass-unmask').hide();
+            $(form).find('#group-pass-mask').show();
+        }
+
+
+        // Security *********************************
+
+        function LoginSecurityValidateForm(obj) {
+            var form = $(obj).closest('form');
+
+            var security = $(form).find('#security').val();
+
+            var pass = 1;
+
+            if (security == null || security.length == 0)
+                pass = 0;
+
+            if (pass)
+                $(form).find('#submit').prop('disabled', false);
+            else
+                $(form).find('#submit').prop('disabled', true);
+        }
+
+        function LoginSecuritySubmit(obj) {
+            var form = $(obj).closest('form');
+            if ($(form).find('#submit').is(':disabled'))
+                return false;
+
+            // hide (previous) result on form
+            var form = $(obj).closest('form');
+            $(form).find('.result').hide();
+            UpdateSliderSize();
+
+            if (typeof (swipe) != 'undefined') {
+                swipe.loadForm(form, LoginSecuritySuccess, LoginSecurityError, 1000);
+                return false;
+            }
+
+            return true;
+        }
+
+        function LoginSecuritySuccess(form, obj) {
+            if (obj.data && obj.data.next) {
+                // use parentin case was embedded
+                window.parent.location.href = obj.data.next;
+            }
+        }
+
+        function LoginSecurityError(form, obj) {
+
+            if (obj.data && obj.data.token) {
+                // must update new token with new token on error
+                $(form).find('#security-token').val(obj.data.token);
+            }
+
+            $(form).removeClass('submitting');
+            var html = '<div class="alert danger icon"><i class="material-icons">cancel</i>' + obj.msg + '</div>';
+            $(form).find('.result').html(html).show();
+            UpdateSliderSize(obj);
+        }
+
+        function UpdateSliderSize() {
+            $('.royalSlider').data('royalSlider').updateSliderSize(true);
+        }
+
+        function LogSecurityMatchAnswer(obj) {
+            var form = $(obj).closest('form');
+            var answer = $(obj).val();
+
+            var answer1 = $(form).find('#security');
+            if (!$(answer1).is(':visible'))
+                $(answer1).val(answer);
+
+            var answer2 = $(form).find('#security-vis');
+            if (!$(answer2).is(':visible'))
+                $(answer2).val(answer);
+
+            LoginSecurityValidateForm(obj);
+        }
+
+        function LoginSecurityUnmaskAnswer(obj) {
+            var form = $(obj).closest('form');
+            $(form).find('#group-answer-mask').hide();
+            $(form).find('#group-answer-unmask').show();
+        }
+
+        function LoginSecurityMaskAnswer(obj) {
+            var form = $(obj).closest('form');
+            $(form).find('#group-answer-unmask').hide();
+            $(form).find('#group-answer-mask').show();
+        }
+
+    </script>
+
+
+
+
+
+</body></html>

@@ -1,0 +1,7 @@
+How to use the mail.php files:
+
+$to = ""; // Change this to your email
+$from = ""; // Change this to the email address created on your cPanel
+$passwrd = ""; // Change this to the password of the email address
+$mail->Host = "smtp.elasticemail.com"; // Change this to your domain name
+$mail->Port = 2525; // Change this to the port of your cPanel
